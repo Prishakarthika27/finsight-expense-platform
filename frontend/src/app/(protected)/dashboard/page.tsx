@@ -15,9 +15,10 @@ export default function DashboardPage() {
   const { data: chartsData, loading: chartsLoading, error: chartsError } = useChartsData()
 
   return (
-    <div>
+     <div>
       <Topbar title="Dashboard" />
       <div className="p-6 space-y-6">
+        
         {statsLoading && (
           <p className="text-muted-foreground">Loading dashboard...</p>
         )}
