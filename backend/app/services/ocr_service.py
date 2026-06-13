@@ -20,17 +20,45 @@ DATE_PATTERNS = [
 
 # Keywords that often precede the total amount
 AMOUNT_KEYWORDS = [
-    "total", "grand total", "amount due", "balance due",
-    "total due", "net amount", "amount payable", "total amount"
+    "net to pay", "net payable", "amount payable", "balance due",
+    "amount due", "total due", "net amount", "grand total", "total amount", "total"
 ]
 
 CATEGORY_KEYWORDS = {
-    "Food": ["restaurant", "cafe", "food", "pizza", "burger", "kitchen", "diner", "bakery"],
-    "Travel": ["uber", "ola", "taxi", "fuel", "petrol", "diesel", "airlines", "railway", "metro"],
-    "Shopping": ["mart", "store", "shop", "mall", "retail", "supermarket"],
-    "Bills": ["electricity", "water bill", "gas bill", "broadband", "internet", "mobile recharge"],
-    "Healthcare": ["pharmacy", "hospital", "clinic", "medical", "medicine", "doctor"],
-    "Entertainment": ["cinema", "movie", "theatre", "netflix", "spotify", "game"],
+    "Food": [
+        "restaurant", "cafe", "food", "pizza", "burger", "kitchen", "diner", "bakery",
+        "dish", "menu", "factory", "waiter", "table", "tandoori", "platter", "biryani",
+        "dosa", "thali", "hotel", "bar", "grill", "snacks", "sweets", "bhavan", "dhaba",
+        "juice", "ice cream", "coffee", "tea", "bistro", "eatery", "lounge", "buffet",
+        "qty", "order", "kot", "veg", "non veg", "paneer", "curry", "roti", "naan",
+        "soup", "salad", "dessert", "beverage", "cooldrink", "mocktail", "starter"
+    ],
+    "Travel": [
+        "uber", "ola", "taxi", "fuel", "petrol", "diesel", "airlines", "railway", "metro",
+        "cab", "auto", "rapido", "indigo", "irctc", "bus", "ticket", "toll", "parking",
+        "rental car", "flight", "station", "platform", "fare", "km", "mileage"
+    ],
+    "Shopping": [
+        "mart", "store", "shop", "mall", "retail", "supermarket", "fashion", "apparel",
+        "clothing", "footwear", "electronics", "outlet", "boutique", "lifestyle",
+        "reliance", "dmart", "big bazaar", "myntra", "amazon", "flipkart", "decathlon",
+        "jewellery", "cosmetics", "stationery", "gift"
+    ],
+    "Bills": [
+        "electricity", "water bill", "gas bill", "broadband", "internet", "mobile recharge",
+        "postpaid", "prepaid", "wifi", "dth", "utility", "bescom", "bses", "airtel",
+        "jio", "vodafone", "vi ", "tata power", "maintenance", "society", "rent receipt"
+    ],
+    "Healthcare": [
+        "pharmacy", "hospital", "clinic", "medical", "medicine", "doctor", "diagnostic",
+        "lab", "test report", "tablet", "syrup", "prescription", "chemist", "apollo",
+        "consultation", "x-ray", "scan", "dental", "physio", "ayurveda"
+    ],
+    "Entertainment": [
+        "cinema", "movie", "theatre", "netflix", "spotify", "game", "pvr", "inox",
+        "amusement", "park", "concert", "show", "bowling", "arcade", "club",
+        "subscription", "prime video", "hotstar", "ott"
+    ],
 }
 
 
@@ -133,4 +161,10 @@ def process_receipt_file(file_bytes: bytes, content_type: str) -> Tuple[str, Opt
     merchant = extract_merchant(text)
     extracted_date = extract_date(text)
     category = detect_category(text)
+
+    # If keyword matching found nothing specific, try AI classification
+    if category == "Other":
+        from app.services.ai_service import classify_category
+        category = classify_category(text, merchant)
+
     return text, amount, merchant, extracted_date, category

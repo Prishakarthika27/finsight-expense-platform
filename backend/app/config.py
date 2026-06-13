@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     secret_key: str
     allowed_origins: str = "http://localhost:3000"
     tesseract_cmd: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
+    groq_api_key: str = ""
+    
     class Config:
         env_file = ".env"
 
