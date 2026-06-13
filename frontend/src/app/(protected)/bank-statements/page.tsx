@@ -63,7 +63,7 @@ export default function BankStatementsPage() {
   return (
     <div>
       <Topbar title="Bank Statement Analyzer" />
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 max-w-5xl mx-auto">
         <p className="text-muted-foreground max-w-2xl">
           Upload a PDF bank statement downloaded from your bank&apos;s internet banking portal. We&apos;ll extract transactions and generate spending insights.
         </p>
