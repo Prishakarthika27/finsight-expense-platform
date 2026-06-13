@@ -34,3 +34,29 @@ Respond with ONLY the category name, nothing else."""
         return "Other"
     except Exception:
         return "Other"
+    def classify_transaction_category(description: str) -> str:
+    try:
+        client = Groq(api_key=settings.groq_api_key)
+
+        prompt = f"""Classify this bank transaction description into EXACTLY ONE category: Food, Travel, Shopping, Bills, Healthcare, Entertainment, Other.
+
+Transaction description: {description}
+
+Respond with ONLY the category name, nothing else."""
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=10,
+            temperature=0,
+        )
+
+        category = response.choices[0].message.content.strip()
+
+        for valid in VALID_CATEGORIES:
+            if valid.lower() == category.lower():
+                return valid
+
+        return "Other"
+    except Exception:
+        return "Other"
