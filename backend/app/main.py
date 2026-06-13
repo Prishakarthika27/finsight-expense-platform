@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
-from app.routers import auth, dashboard, charts, expenses, bills, statements, documents
+from app.routers import auth, dashboard, charts, expenses, bills, statements, documents, profile
 settings = get_settings()
 
 app = FastAPI(
@@ -24,6 +24,7 @@ app.include_router(expenses.router)
 app.include_router(bills.router)
 app.include_router(statements.router)
 app.include_router(documents.router)
+app.include_router(profile.router)
 
 @app.get("/")
 def root():
