@@ -61,20 +61,38 @@ export default function HelpCenterPage() {
   const [issueDescription, setIssueDescription] = useState("")
   const [issueSubmitted, setIssueSubmitted] = useState(false)
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitted(true)
-    setName("")
-    setEmail("")
-    setMessage("")
-    setTimeout(() => setSubmitted(false), 4000)
+    try {
+      await fetch("https://formspree.io/f/xwvjgbnr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, message }),
+      })
+      setSubmitted(true)
+      setName("")
+      setEmail("")
+      setMessage("")
+      setTimeout(() => setSubmitted(false), 4000)
+    } catch {
+      alert("Failed to send message. Please try again.")
+    }
   }
 
-  const handleIssueSubmit = (e: React.FormEvent) => {
+  const handleIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIssueSubmitted(true)
-    setIssueDescription("")
-    setTimeout(() => setIssueSubmitted(false), 4000)
+    try {
+      await fetch("https://formspree.io/f/xvznervb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ issue: issueDescription }),
+      })
+      setIssueSubmitted(true)
+      setIssueDescription("")
+      setTimeout(() => setIssueSubmitted(false), 4000)
+    } catch {
+      alert("Failed to submit report. Please try again.")
+    }
   }
 
   return (
