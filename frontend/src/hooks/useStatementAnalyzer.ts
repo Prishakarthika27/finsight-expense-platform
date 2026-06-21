@@ -67,7 +67,7 @@ export function useStatementAnalyzer() {
         if (typeof errorData.detail === "string") {
           message = errorData.detail
         } else if (Array.isArray(errorData.detail)) {
-          message = errorData.detail.map((e: any) => e.msg).join(", ")
+          message = errorData.detail.map((e: {msg: string}) => e.msg).join(", ")
         }
         throw new Error(message)
       }

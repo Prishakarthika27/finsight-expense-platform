@@ -37,7 +37,7 @@ export function CategoryDistributionChart({ data }: CategoryDistributionChartPro
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                label={(props: any) =>
+                label={(props: Record<string, number>) =>
                   `${props.category} ${((props.percent ?? 0) * 100).toFixed(0)}%`
                 }
                 

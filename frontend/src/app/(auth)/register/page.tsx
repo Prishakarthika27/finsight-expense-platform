@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +11,7 @@ import { Wallet } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function RegisterPage() {
-  const router = useRouter()
+  
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

@@ -6,10 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SignatureCanvasComponent } from "@/components/shared/signature-canvas"
 import { useSignature } from "@/hooks/useSignature"
-import { Upload, FileText, CheckCircle2, Download } from "lucide-react"
-
+import { Upload, CheckCircle2, Download } from "lucide-react"
 export default function SignaturePage() {
-  const { savedSignatureUrl, saveSignature, signDocument, saving, signing, error } = useSignature()
+ const { saveSignature, signDocument, saving, signing, error } = useSignature()
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null)
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)

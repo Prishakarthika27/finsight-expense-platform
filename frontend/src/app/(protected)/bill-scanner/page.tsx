@@ -3,7 +3,6 @@
 import { useState, useRef } from "react"
 import { Topbar } from "@/components/layout/topbar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useBillScanner } from "@/hooks/useBillScanner"
 import { formatCurrency } from "@/lib/utils"
