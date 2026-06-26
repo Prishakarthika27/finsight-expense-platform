@@ -1,5 +1,5 @@
 "use client"
-
+import { Home } from "lucide-react"
 import { useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase"
@@ -48,16 +48,18 @@ export default function RegisterPage() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-        <div className="absolute top-4 left-4">
-        <Link href="/home" className="flex items-center gap-1.5 text-sm font-medium text-primary hover:opacity-80 transition-opacity">
-          <Wallet className="h-4 w-4" />
-          FinSight
-        </Link>
-      </div>
-      </div>
-        <div className="w-full max-w-sm">
+      <div className="absolute top-6 left-6">
+    <Link href="/home">
+      <Button variant="outline" size="icon" className="h-8 w-8">
+        <Home className="h-3.5 w-3.5" />
+      </Button>
+    </Link>
+  </div>
+
+  <div className="absolute top-6 right-6">
+    <ThemeToggle />
+  </div>
+        <div className="w-full max-w-md">
           <Card>
             <CardContent className="pt-6 text-center space-y-3">
               <div className="flex items-center justify-center gap-2 mb-2">
@@ -69,6 +71,9 @@ export default function RegisterPage() {
                 We&apos;ve sent a confirmation link to{" "}
                 <span className="font-medium text-foreground">{email}</span>.
                 Click the link to activate your account.
+              </p>
+              <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">
+                💡 Don&apos;t see the email? Please check your <span className="font-medium">spam or junk folder</span>.
               </p>
               <Link href="/login">
                 <Button className="w-full mt-2">Back to login</Button>

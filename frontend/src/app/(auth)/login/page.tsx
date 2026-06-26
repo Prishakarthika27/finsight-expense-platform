@@ -1,5 +1,5 @@
 "use client"
-
+import { Home } from "lucide-react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -42,16 +42,18 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
-  <div className="absolute top-4 right-4">
-    <ThemeToggle />
-    <div className="absolute top-4 left-4">
-        <Link href="/home" className="flex items-center gap-1.5 text-sm font-medium text-primary hover:opacity-80 transition-opacity">
-          <Wallet className="h-4 w-4" />
-          FinSight
-        </Link>
-      </div>
+  <div className="absolute top-6 left-6">
+    <Link href="/home">
+      <Button variant="outline" size="icon" className="h-8 w-8">
+        <Home className="h-3.5 w-3.5" />
+      </Button>
+    </Link>
   </div>
-      <div className="w-full max-w-sm">
+
+  <div className="absolute top-6 right-6">
+    <ThemeToggle />
+  </div>
+      <div className="w-full max-w-md">
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex items-center justify-center gap-2 mb-1">
