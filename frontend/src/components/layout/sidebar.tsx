@@ -135,10 +135,10 @@ export function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 border-r bg-card">
-        <div className="flex items-center gap-2 px-4 h-16 border-b">
+        <Link href="/home" className="flex items-center gap-2 px-4 h-16 border-b hover:opacity-80 transition-opacity">
           <Wallet className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold">FinSight</span>
-        </div>
+        </Link>
         <NavContent />
       </aside>
 

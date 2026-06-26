@@ -50,6 +50,12 @@ export default function RegisterPage() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
+        <div className="absolute top-4 left-4">
+        <Link href="/home" className="flex items-center gap-1.5 text-sm font-medium text-primary hover:opacity-80 transition-opacity">
+          <Wallet className="h-4 w-4" />
+          FinSight
+        </Link>
+      </div>
       </div>
         <div className="w-full max-w-sm">
           <Card>
