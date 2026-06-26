@@ -8,7 +8,11 @@ export default function ProtectedLayout({
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <div className="md:pl-60">{children}</div>
+      {/* Desktop: push content right by sidebar width */}
+      {/* Mobile: add top padding for mobile topbar */}
+      <div className="md:pl-60 pt-14 md:pt-0">
+        {children}
+      </div>
     </div>
   )
 }
