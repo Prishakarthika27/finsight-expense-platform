@@ -90,15 +90,18 @@ export function SignatureCanvasComponent({ onSave }: SignatureCanvasProps) {
     const point = getCoords(e, canvas)
 
     if (lastPoint.current) {
+      // Simple smoothing: blend current point with last point
+      const smoothX = lastPoint.current.x * 0.5 + point.x * 0.5
+      const smoothY = lastPoint.current.y * 0.5 + point.y * 0.5
+
       ctx.beginPath()
       ctx.moveTo(lastPoint.current.x, lastPoint.current.y)
-      ctx.lineTo(point.x, point.y)
+      ctx.lineTo(smoothX, smoothY)
       ctx.stroke()
+
+      lastPoint.current = { x: smoothX, y: smoothY }
     }
-
-    lastPoint.current = point
   }
-
   const stopDrawing = () => {
     setIsDrawing(false)
     lastPoint.current = null
@@ -127,8 +130,8 @@ export function SignatureCanvasComponent({ onSave }: SignatureCanvasProps) {
           onMouseMove={draw}
           onMouseUp={stopDrawing}
           onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
+          onTouchStart={(e) => { e.preventDefault(); startDrawing(e) }}
+          onTouchMove={(e) => { e.preventDefault(); draw(e) }}
           onTouchEnd={stopDrawing}
         />
       </div>

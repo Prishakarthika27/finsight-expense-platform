@@ -1,22 +1,30 @@
 "use client"
 
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
+  RadialBarChart,
+  RadialBar,
   ResponsiveContainer,
+  Tooltip,
   Legend,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatCurrency } from "@/lib/utils"
 
 interface CategoryDistributionChartProps {
   data: { category: string; amount: number }[]
 }
 
-const COLORS = ["#0F6E56", "#1D9E75", "#5DCAA5", "#9FE1CB", "#378ADD", "#85B7EB", "#F0997B"]
+const COLORS = ["#0F6E56", "#378ADD", "#F0997B", "#9B59B6", "#F39C12", "#E74C3C", "#1D9E75"]
 
 export function CategoryDistributionChart({ data }: CategoryDistributionChartProps) {
+  const total = data.reduce((sum, d) => sum + d.amount, 0)
+
+  const chartData = data.map((item, index) => ({
+    name: item.category,
+    amount: item.amount,
+    fill: COLORS[index % COLORS.length],
+  }))
+
   return (
     <Card>
       <CardHeader>
@@ -28,30 +36,58 @@ export function CategoryDistributionChart({ data }: CategoryDistributionChartPro
             No expense data yet
           </p>
         ) : (
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={data}
-                dataKey="amount"
-                nameKey="category"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                label={(props: Record<string, number>) =>
-                  `${props.category} ${((props.percent ?? 0) * 100).toFixed(0)}%`
-                }
-                
-              >
-                {data.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Amount"]}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <ResponsiveContainer width="100%" height={220}>
+                <RadialBarChart
+                  innerRadius="30%"
+                  outerRadius="100%"
+                  data={chartData}
+                  startAngle={90}
+                  endAngle={-270}
+                >
+                  <RadialBar
+                    dataKey="amount"
+                    cornerRadius={6}
+                    background={{ fill: "hsl(var(--muted))" }}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Amount"]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      color: "hsl(var(--foreground))",
+                      fontSize: "12px",
+                    }}
+                  />
+                </RadialBarChart>
+              </ResponsiveContainer>
+              {/* Center text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-sm font-semibold">{formatCurrency(total)}</p>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="space-y-2 shrink-0">
+              {chartData.map((item) => (
+                <div key={item.name} className="flex items-center gap-2">
+                  <div
+                    className="h-3 w-3 rounded-full shrink-0"
+                    style={{ background: item.fill }}
+                  />
+                  <div>
+                    <p className="text-xs font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(item.amount)} · {Math.round((item.amount / total) * 100)}%
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
