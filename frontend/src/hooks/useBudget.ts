@@ -13,7 +13,7 @@ export function useBudget() {
 
   const fetchBudget = useCallback(async () => {
     try {
-      const data = await apiFetch<Budget>("/budget")
+      const data = await apiFetch("/budget") as Budget
       setBudget(data.monthly_budget)
     } catch {
       setError("Failed to load budget")
@@ -30,10 +30,10 @@ export function useBudget() {
     setSaving(true)
     setError("")
     try {
-      const data = await apiFetch<Budget>("/budget", {
+      const data = await apiFetch("/budget", {
         method: "POST",
         body: JSON.stringify({ monthly_budget: amount }),
-      })
+      }) as Budget
       setBudget(data.monthly_budget)
       return true
     } catch {
