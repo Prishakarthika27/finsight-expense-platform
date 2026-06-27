@@ -1,5 +1,5 @@
 "use client"
-
+import { BudgetAlert } from "@/components/shared/budget-alert"
 import { Topbar } from "@/components/layout/topbar"
 import { MonthlySpendingChart } from "@/components/shared/monthly-spending-chart"
 import { CategoryDistributionChart } from "@/components/shared/category-distribution-chart"
@@ -119,6 +119,11 @@ export default function DashboardPage() {
               icon={Tag}
             />
           </div>
+        )}
+
+        {/* Budget Alert */}
+        {stats && (
+          <BudgetAlert totalExpenses={stats.total_expenses} />
         )}
 
         {/* Charts row */}
