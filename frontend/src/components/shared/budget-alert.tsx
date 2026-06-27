@@ -1,5 +1,6 @@
 "use client"
 
+import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { useBudget } from "@/hooks/useBudget"
 import { formatCurrency } from "@/lib/utils"
@@ -11,6 +12,30 @@ import { cn } from "@/lib/utils"
 
 interface BudgetAlertProps {
   totalExpenses: number
+}
+
+function playAlertSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+
+    oscillator.type = "sine"
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime)
+    oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.1)
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.2)
+
+    gainNode.gain.setValueAtTime(1.0, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0)
+
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + 1.0)
+  } catch {
+    // Sound not supported
+  }
 }
 
 export function BudgetAlert({ totalExpenses }: BudgetAlertProps) {
@@ -27,14 +52,27 @@ export function BudgetAlert({ totalExpenses }: BudgetAlertProps) {
   const isWarning = percentage >= 80 && percentage < 100
   const isOver = percentage >= 100
 
-  // Play sound when over budget
-  useEffect(() => {
-    if (isOver && budget > 0) {
-      const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA...")
-      audio.volume = 0.3
-      audio.play().catch(() => {})
+  const checkBudgetAlert = () => {
+    if (budget <= 0) return
+    if (isOver) {
+      playAlertSound()
+      toast.error("⚠️ Budget Exceeded!", {
+        description: `You've spent ${formatCurrency(totalExpenses)} — ${formatCurrency(totalExpenses - budget)} over your budget!`,
+        duration: 5000,
+      })
+    } else if (isWarning) {
+      playAlertSound()
+      toast.warning("⚠️ Approaching Budget Limit!", {
+        description: `You've used ${percentage}% of your ${formatCurrency(budget)} monthly budget.`,
+        duration: 8000,
+      })
     }
-  }, [isOver, budget])
+  }
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission()
+    }
+  }, [])
 
   const handleSave = async () => {
     const amount = parseFloat(inputValue)
@@ -44,9 +82,10 @@ export function BudgetAlert({ totalExpenses }: BudgetAlertProps) {
       setEditing(false)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+      // Check budget alert after saving
+      setTimeout(() => checkBudgetAlert(), 500)
     }
   }
-
   if (loading) return null
 
   const progressColor = isOver
@@ -106,7 +145,6 @@ export function BudgetAlert({ totalExpenses }: BudgetAlertProps) {
               <span>{formatCurrency(budget)} budget</span>
             </div>
 
-            {/* Progress bar */}
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={cn("h-full rounded-full transition-all duration-500", progressColor)}
