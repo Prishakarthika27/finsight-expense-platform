@@ -5,7 +5,7 @@ import {
   RadialBar,
   ResponsiveContainer,
   Tooltip,
-  Legend,
+
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils"
