@@ -49,14 +49,14 @@ export default function HomePage() {
           <span className="text-base font-semibold">FinSight</span>
         </div>
 
-        {/* Desktop nav */}
+        {/* Desktop nav - text */}
         <div className="hidden md:flex items-center gap-6">
           <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
           <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">How it works</a>
           <Link href="/platform" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Platform</Link>
         </div>
 
-        {/* Mobile nav - icons */}
+        {/* Mobile nav - icons only */}
         <div className="flex md:hidden items-center gap-4">
           <a href="#features" className="text-muted-foreground hover:text-primary transition-colors" title="Features">
             <ScanLine className="h-5 w-5" />
@@ -73,9 +73,6 @@ export default function HomePage() {
           <ThemeToggle />
           <Link href="/login" className="text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             Log in
-          </Link>
-          <Link href="/register" className="hidden md:block text-sm px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-medium">
-            Get started
           </Link>
         </div>
       </nav>
@@ -145,19 +142,6 @@ export default function HomePage() {
               </div>
             )
           })}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-16 px-6 text-center bg-muted/50 border-t border-border">
-        <h2 className="animate-on-scroll text-2xl font-semibold mb-3">Ready to take control of your finances?</h2>
-        <p className="animate-on-scroll text-sm text-muted-foreground mb-8">
-          Join FinSight today — free to get started, no credit card required.
-        </p>
-        <div className="animate-on-scroll">
-          <Link href="/register" className="inline-block px-8 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-md">
-            Get started free →
-          </Link>
         </div>
       </section>
 
