@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import Link from "next/link"
-import { Wallet, ScanLine, FileBarChart, LayoutDashboard, Receipt, PenTool, FolderOpen, BarChart2 } from "lucide-react"
+import { Wallet, ScanLine, FileBarChart, LayoutDashboard, Receipt, PenTool, FolderOpen } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 const FEATURES = [
@@ -49,23 +49,17 @@ export default function HomePage() {
           <span className="text-base font-semibold">FinSight</span>
         </div>
 
-        {/* Desktop nav - text */}
+        {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-6">
           <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
           <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">How it works</a>
           <Link href="/platform" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Platform</Link>
         </div>
 
-        {/* Mobile nav - icons only */}
-        <div className="flex md:hidden items-center gap-4">
-          <a href="#features" className="text-muted-foreground hover:text-primary transition-colors" title="Features">
-            <ScanLine className="h-5 w-5" />
-          </a>
-          <a href="#how-it-works" className="text-muted-foreground hover:text-primary transition-colors" title="How it works">
-            <BarChart2 className="h-5 w-5" />
-          </a>
-          <Link href="/platform" className="text-muted-foreground hover:text-primary transition-colors" title="Platform">
-            <LayoutDashboard className="h-5 w-5" />
+        {/* Mobile nav - Platform only */}
+        <div className="flex md:hidden items-center">
+          <Link href="/platform" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Platform
           </Link>
         </div>
 
