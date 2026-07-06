@@ -50,7 +50,7 @@ export default function HomePage() {
           <Wallet className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold">FinSight</span>
         </div>
-        <div className="hidden md:flex items-center gap-6">
+        <div className="hidden md:flex items-center gap-6" style={{display: 'none'}}>
           <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Features
           </a>
@@ -66,7 +66,7 @@ export default function HomePage() {
           <Link href="/login" className="text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             Log in
           </Link>
-          <Link href="/register" className="text-sm px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-medium">
+          <Link href="/register" className="hidden md:block text-sm px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-medium">
             Get started
           </Link>
         </div>
