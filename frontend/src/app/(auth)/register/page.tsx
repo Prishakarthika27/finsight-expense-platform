@@ -74,9 +74,8 @@ export default function RegisterPage() {
                 Click the link to activate your account.
               </p>
               <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">
-                💡 Don&apos;t see the email? Please check your <span className="font-medium">spam or junk folder</span>.
-              </p>
-              <Link href="/login">
+                💡 The email will arrive from <span className="font-medium">noreply@mail.supabase.io</span>. Don&apos;t see it? Check your spam folder.
+              </p>              <Link href="/login">
                 <Button className="w-full mt-2">Back to login</Button>
               </Link>
             </CardContent>
