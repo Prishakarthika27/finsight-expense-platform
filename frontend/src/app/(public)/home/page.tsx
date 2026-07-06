@@ -109,11 +109,11 @@ export default function HomePage() {
       <section id="how-it-works" className="py-20 px-6 bg-muted/50 border-t border-border">
         <p className="animate-on-scroll text-center text-xs font-semibold text-primary uppercase tracking-widest mb-2">How it works</p>
         <h2 className="animate-on-scroll text-center text-2xl font-semibold mb-14">Three simple steps</h2>
-        <div className="flex flex-col md:flex-row items-start justify-center gap-10 max-w-3xl mx-auto">
+        <div className="flex flex-col md:grid md:grid-cols-3 gap-8 max-w-3xl mx-auto items-center">
           {STEPS.map((step, i) => (
             <div
               key={i}
-              className={`animate-on-scroll flex flex-col items-center text-center gap-3 flex-1`}
+              className="animate-on-scroll flex flex-col items-center text-center gap-3 w-full"
             >
               <div className="h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold shadow-md">
                 {step.num}
