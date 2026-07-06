@@ -61,29 +61,15 @@ export default function PlatformPage() {
     <div className="min-h-screen bg-background font-sans">
 
       {/* Navbar */}
-      <nav className="grid grid-cols-3 items-center px-8 h-14 border-b bg-card sticky top-0 z-10">
-        <div className="flex items-center gap-2">
+      <nav className="flex items-center justify-between px-4 md:px-8 h-14 border-b bg-card sticky top-0 z-10">
+        <Link href="/home" className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold">FinSight</span>
-        </div>
-        <div className="flex items-center justify-center gap-6">
-          <Link href="/home#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Features
-          </Link>
-          <Link href="/home#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            How it works
-          </Link>
-          <Link href="/platform" className="text-sm font-medium text-foreground transition-colors">
-            Platform
-          </Link>
-        </div>
-        <div className="flex items-center justify-end gap-2">
+        </Link>
+        <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link href="/login" className="text-sm px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors">
+          <Link href="/login" className="text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             Log in
-          </Link>
-          <Link href="/register" className="text-sm px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-medium">
-            Get started
           </Link>
         </div>
       </nav>
