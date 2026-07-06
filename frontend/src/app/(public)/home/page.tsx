@@ -44,7 +44,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background font-sans">
 
-      <nav className="grid grid-cols-3 items-center px-8 h-14 border-b bg-card sticky top-0 z-10">
+      <nav className="flex items-center justify-between px-4 h-14 border-b bg-card sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold">FinSight</span>
