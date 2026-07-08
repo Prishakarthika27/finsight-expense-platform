@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     supabase_anon_key: str
     secret_key: str
     allowed_origins: str = "http://localhost:3000"
-    tesseract_cmd: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    tesseract_cmd: str = "tesseract"
     groq_api_key: str = ""
     
     class Config:
