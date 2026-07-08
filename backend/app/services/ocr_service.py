@@ -1,6 +1,7 @@
+
 import pytesseract
 from app.config import get_settings
-
+ 
 _settings = get_settings()
 pytesseract.pytesseract.tesseract_cmd = _settings.tesseract_cmd
 import fitz  # PyMuPDF
@@ -9,21 +10,22 @@ from PIL import Image
 from datetime import date as date_type, datetime
 from typing import Optional, Tuple
 import io
-
-
+ 
+ 
 # Common date patterns found on receipts
 DATE_PATTERNS = [
     (r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})", "%d/%m/%Y"),
     (r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{2})", "%d/%m/%y"),
     (r"(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})", "%Y/%m/%d"),
+    (r"(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})", "%d %B %Y"),
 ]
-
+ 
 # Keywords that often precede the total amount
 AMOUNT_KEYWORDS = [
     "net to pay", "net payable", "amount payable", "balance due",
     "amount due", "total due", "net amount", "grand total", "total amount", "total"
 ]
-
+ 
 CATEGORY_KEYWORDS = {
     "Food": [
         "restaurant", "cafe", "food", "pizza", "burger", "kitchen", "diner", "bakery",
@@ -60,8 +62,8 @@ CATEGORY_KEYWORDS = {
         "subscription", "prime video", "hotstar", "ott"
     ],
 }
-
-
+ 
+ 
 def extract_text_from_image(file_bytes: bytes) -> str:
     try:
         image = Image.open(io.BytesIO(file_bytes))
@@ -70,24 +72,27 @@ def extract_text_from_image(file_bytes: bytes) -> str:
     except Exception:
         # Tesseract not available - return empty string and let AI handle categorization
         return ""
-
-
+ 
+ 
 def extract_amount(text: str) -> Optional[float]:
-    lines = text.lower().split("\n")
-
-    # First pass: look for amount near keywords
-    for line in lines:
-        for keyword in AMOUNT_KEYWORDS:
-            if keyword in line:
-                numbers = re.findall(r"[\d,]+\.\d{2}|\d+", line)
-                if numbers:
-                    cleaned = numbers[-1].replace(",", "")
-                    try:
-                        return float(cleaned)
-                    except ValueError:
-                        continue
-
-    # Fallback: find the largest number with decimal in the whole text
+    text_lower = text.lower()
+ 
+    # First pass: look for a number within a window after a keyword.
+    # This handles both "Total: 419" (same line) and "Grand Total:\n419" (next line),
+    # which is common when OCR/PDF text extraction splits a label and its value.
+    for keyword in AMOUNT_KEYWORDS:
+        idx = text_lower.find(keyword)
+        if idx != -1:
+            window = text[idx: idx + len(keyword) + 40]
+            numbers = re.findall(r"[\d,]+\.\d{2}|\d{2,}", window)
+            if numbers:
+                cleaned = numbers[-1].replace(",", "")
+                try:
+                    return float(cleaned)
+                except ValueError:
+                    continue
+ 
+    # Fallback: largest decimal number in the whole text
     all_numbers = re.findall(r"[\d,]+\.\d{2}", text)
     if all_numbers:
         try:
@@ -95,17 +100,29 @@ def extract_amount(text: str) -> Optional[float]:
             return max(amounts)
         except ValueError:
             pass
-
+ 
+    # Second fallback: largest plain integer (2+ digits) anywhere in the text.
+    # Needed for receipts with whole-rupee amounts and no decimal points at all.
+    all_ints = re.findall(r"\b\d{2,}\b", text)
+    if all_ints:
+        try:
+            amounts = [float(n) for n in all_ints]
+            return max(amounts)
+        except ValueError:
+            pass
+ 
     return None
-
-
+ 
+ 
 def extract_date(text: str) -> Optional[date_type]:
     for pattern, fmt in DATE_PATTERNS:
-        match = re.search(pattern, text)
+        match = re.search(pattern, text, re.IGNORECASE)
         if match:
             try:
                 date_str = match.group(0)
-                if fmt == "%d/%m/%y":
+                if fmt == "%d %B %Y":
+                    parsed = datetime.strptime(date_str, "%d %B %Y")
+                elif fmt == "%d/%m/%y":
                     parsed = datetime.strptime(date_str.replace("-", "/"), "%d/%m/%y")
                 elif fmt == "%Y/%m/%d":
                     parsed = datetime.strptime(date_str.replace("-", "/"), "%Y/%m/%d")
@@ -115,8 +132,8 @@ def extract_date(text: str) -> Optional[date_type]:
             except ValueError:
                 continue
     return None
-
-
+ 
+ 
 def extract_merchant(text: str) -> Optional[str]:
     lines = [line.strip() for line in text.split("\n") if line.strip()]
     if lines:
@@ -125,8 +142,8 @@ def extract_merchant(text: str) -> Optional[str]:
             if len(line) > 2 and not re.match(r"^[\d\s\-/:.,]+$", line):
                 return line[:100]
     return None
-
-
+ 
+ 
 def detect_category(text: str) -> str:
     text_lower = text.lower()
     for category, keywords in CATEGORY_KEYWORDS.items():
@@ -134,8 +151,8 @@ def detect_category(text: str) -> str:
             if keyword in text_lower:
                 return category
     return "Other"
-
-
+ 
+ 
 def process_receipt(file_bytes: bytes) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:
     text = extract_text_from_image(file_bytes)
     amount = extract_amount(text)
@@ -161,22 +178,23 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         return extract_text_from_image(img_bytes)
     except Exception:
         return ""
-
-
+ 
+ 
 def process_receipt_file(file_bytes: bytes, content_type: str) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:
     if content_type == "application/pdf":
         text = extract_text_from_pdf(file_bytes)
     else:
         text = extract_text_from_image(file_bytes)
-
+ 
     amount = extract_amount(text)
     merchant = extract_merchant(text)
     extracted_date = extract_date(text)
     category = detect_category(text)
-
+ 
     # If keyword matching found nothing specific, try AI classification
     if category == "Other":
         from app.services.ai_service import classify_category
         category = classify_category(text, merchant)
-
+ 
     return text, amount, merchant, extracted_date, category
+ 
