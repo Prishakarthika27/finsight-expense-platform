@@ -63,9 +63,13 @@ CATEGORY_KEYWORDS = {
 
 
 def extract_text_from_image(file_bytes: bytes) -> str:
-    image = Image.open(io.BytesIO(file_bytes))
-    text = pytesseract.image_to_string(image)
-    return text
+    try:
+        image = Image.open(io.BytesIO(file_bytes))
+        text = pytesseract.image_to_string(image)
+        return text
+    except Exception:
+        # Tesseract not available - return empty string and let AI handle categorization
+        return ""
 
 
 def extract_amount(text: str) -> Optional[float]:
@@ -140,15 +144,23 @@ def process_receipt(file_bytes: bytes) -> Tuple[str, Optional[float], Optional[s
     category = detect_category(text)
     return text, amount, merchant, extracted_date, category
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
-    page = pdf_document[0]
-
-    # Render page to an image at higher resolution for better OCR accuracy
-    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-    img_bytes = pix.tobytes("png")
-
-    pdf_document.close()
-    return extract_text_from_image(img_bytes)
+    try:
+        pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
+        text = ""
+        for page in pdf_document:
+            text += page.get_text()
+        pdf_document.close()
+        if text.strip():
+            return text
+        # If no text extracted, try image-based OCR
+        pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
+        page = pdf_document[0]
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+        img_bytes = pix.tobytes("png")
+        pdf_document.close()
+        return extract_text_from_image(img_bytes)
+    except Exception:
+        return ""
 
 
 def process_receipt_file(file_bytes: bytes, content_type: str) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:

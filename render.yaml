@@ -8,6 +8,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-    packages:
+      - key: TESSDATA_PREFIX
+        value: /usr/share/tesseract-ocr/4.00/tessdata
+    nativeEnvironments:
       - tesseract-ocr
-      - tesseract-ocr-eng
