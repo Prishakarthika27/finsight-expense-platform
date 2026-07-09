@@ -11,10 +11,21 @@ def classify_category(extracted_text: str, merchant: str | None) -> str:
     try:
         client = Groq(api_key=settings.groq_api_key)
 
-        prompt = f"""You are a receipt categorization assistant. Based on the merchant name and receipt text below, classify it into EXACTLY ONE of these categories: Food, Travel, Shopping, Bills, Healthcare, Entertainment, Other.
+        prompt = f"""You are a receipt/invoice categorization assistant. Based on the merchant name and receipt text below, classify it into EXACTLY ONE of these categories: Food, Travel, Shopping, Bills, Healthcare, Entertainment, Other.
+
+Category definitions:
+- Food: restaurants, cafes, food delivery, dining out.
+- Travel: flights, trains, buses, taxis/rideshare, fuel, hotels, tolls, parking.
+- Shopping: one-time retail purchases of goods - clothing, electronics, groceries, general merchandise, gifts.
+- Bills: recurring household/utility payments - electricity, water, gas cylinder/LPG refills, internet, mobile recharge, insurance premiums, rent, EMI/loan payments, subscriptions for utilities.
+- Healthcare: pharmacy, hospital, clinic, doctor visits, diagnostics, dental, therapy.
+- Entertainment: movies, streaming subscriptions, concerts, games, theme parks, gyms.
+- Other: anything that doesn't clearly fit the above.
+
+Domain hint: Indian LPG/cooking gas cylinder bills come from one of three national suppliers - Indane (Indian Oil Corporation/IOCL), Bharat Gas (Bharat Petroleum/BPCL), or HP Gas (Hindustan Petroleum/HPCL) - and often show a weight around "14.2Kg" (standard domestic cylinder size), terms like "Cons No"/"Consumer No", "Booking No", "Refill", "DBC" or "PAHAL" (subsidy schemes), or "Quota in Kg". These should be classified as Bills, not Shopping, even though a Kg quantity or "Order" wording is involved.
 
 Merchant: {merchant or "Unknown"}
-Receipt text snippet: {extracted_text[:300]}
+Receipt text: {extracted_text[:1500]}
 
 Respond with ONLY the category name, nothing else."""
 
@@ -119,17 +130,6 @@ RECEIPT_EXTRACTION_EXAMPLE_OUTPUT = """{"amount": 268.00, "merchant": "Sparkle M
 
 
 def extract_receipt_data(extracted_text: str) -> dict:
-    """
-    Uses Groq to extract amount, merchant, and date directly from raw OCR text,
-    instead of relying on regex patterns that break across different receipt
-    formats. A detailed system prompt plus a worked few-shot example teaches
-    the model to reason through common OCR noise patterns (false-positive
-    reference codes, garbled brand names, split label/value lines) rather
-    than naively grabbing the first number or line it sees.
-
-    Returns a dict with keys: amount (float or None), merchant (str or None),
-    date (str in YYYY-MM-DD format, or None).
-    """
     fallback = {"amount": None, "merchant": None, "date": None}
 
     if not extracted_text or not extracted_text.strip():

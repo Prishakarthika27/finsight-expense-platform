@@ -64,15 +64,18 @@ CATEGORY_KEYWORDS = {
         "apple store", "ebay", "etsy", "alibaba", "shein", "temu", "sephora", "ulta",
         "home depot", "lowe's", "lowes", "department store", "thrift store",
         "convenience store", "7-eleven", "hypermarket", "showroom", "furniture store",
-        "big basket", "bigbasket", "blinkit", "nykka", "purple", "tira",
-        "zepto"
+        "big basket", "bigbasket", "nykaa", "nykka", "purplle", "purple", "tira",
+        "zepto", "blinkit"
     ],
     "Bills": [
         "electricity", "water bill", "gas bill", "broadband", "internet", "mobile recharge",
         "postpaid", "prepaid", "wifi", "dth", "utility", "bescom", "bses", "airtel",
         "jio", "vodafone", "vi ", "tata power", "maintenance", "society", "rent receipt",
         "gas cylinder", "cylinder", "lpg", "refill", "indane", "bharat gas", "hp gas",
-        "gas agency", "gas service", "gas distributor",
+        "gas agency", "gas service", "gas distributor", "iocl", "bpcl", "hpcl",
+        "indian oil", "bharat petroleum", "hindustan petroleum", "cooking gas",
+        "domestic gas", "dbc", "pahal", "consumer no", "cons no", "gas booking",
+        "cylinder delivery", "cylinder refill", "gas distributorship",
         "insurance", "premium", "mortgage", "rent", "lease", "verizon", "at&t",
         "t-mobile", "sprint", "o2", "ee mobile", "orange mobile", "telstra",
         "comcast", "xfinity", "spectrum", "sewer", "council tax", "property tax",
