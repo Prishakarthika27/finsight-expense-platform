@@ -239,6 +239,19 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         return ""
 
 
+def _normalize_common_ocr_date_artifacts(text: str) -> str:
+    """
+    Tesseract commonly misreads a leading '1' in a two-digit day as a stray
+    symbol immediately before the next digit (e.g. "{7" instead of "17"),
+    especially right after a "Date:" label. This deterministically corrects
+    that specific, recurring pattern rather than relying on the LLM to infer
+    it correctly every time - an 8B model applies this kind of subtle
+    character-level reasoning inconsistently even when told about it directly.
+    """
+    pattern = re.compile(r"(date\s*[:\-]?\s*)([{(\[|iIl])(\d)(?=\s*[/\-])", re.IGNORECASE)
+    return pattern.sub(lambda m: f"{m.group(1)}1{m.group(3)}", text)
+
+
 def _extract_all_fields(text: str) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:
     """
     Groq is the primary extraction path for amount/merchant/date, since it
@@ -246,6 +259,8 @@ def _extract_all_fields(text: str) -> Tuple[str, Optional[float], Optional[str],
     Regex only fills in whatever Groq couldn't confidently determine, or
     if the Groq call fails entirely (rate limit, network issue, etc).
     """
+    text = _normalize_common_ocr_date_artifacts(text)
+
     from app.services.ai_service import extract_receipt_data, classify_category
 
     ai_result = extract_receipt_data(text)
