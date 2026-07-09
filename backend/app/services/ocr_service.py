@@ -63,7 +63,9 @@ CATEGORY_KEYWORDS = {
         "lidl", "ikea", "zara", "h&m", "uniqlo", "nike", "adidas", "best buy",
         "apple store", "ebay", "etsy", "alibaba", "shein", "temu", "sephora", "ulta",
         "home depot", "lowe's", "lowes", "department store", "thrift store",
-        "convenience store", "7-eleven", "hypermarket", "showroom", "furniture store"
+        "convenience store", "7-eleven", "hypermarket", "showroom", "furniture store",
+        "big basket", "bigbasket", "blinkit", "nykka", "purple", "tira",
+        "zepto"
     ],
     "Bills": [
         "electricity", "water bill", "gas bill", "broadband", "internet", "mobile recharge",
