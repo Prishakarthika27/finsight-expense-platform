@@ -88,6 +88,7 @@ RULES FOR "merchant":
 RULES FOR "date":
 - Convert to YYYY-MM-DD format.
 - Watch for OCR corruption of month names/numbers and reconstruct the most plausible real date.
+- IMPORTANT: if the day-of-month appears to start with an unusual symbol immediately before a single digit (e.g. "{7", "l7", "I7", "i7", "(7"), this is almost always OCR misreading the digit "1" - treat it as a two-digit day (e.g. "{7" most likely means "17"), not a single-digit day formed by dropping the stray symbol.
 - If genuinely no date-like pattern exists anywhere in the text, return null.
 
 Respond with ONLY valid JSON, nothing else, in this exact shape:
