@@ -102,11 +102,29 @@ def preprocess_image_for_ocr(image: Image.Image) -> Image.Image:
 
 
 def extract_text_from_image(file_bytes: bytes) -> str:
+    """
+    Runs Tesseract twice with different page segmentation modes and combines
+    both outputs. Different receipt layouts (a uniform dot-matrix table vs. a
+    large bold header + smaller line-item table) are handled better by
+    different PSM modes - there is no single setting that reliably works
+    best for every layout. Giving Groq both versions increases the chance
+    that whichever field (date, merchant, amount) got garbled in one pass
+    is readable in the other.
+    """
     try:
         image = Image.open(io.BytesIO(file_bytes))
         image = preprocess_image_for_ocr(image)
-        text = pytesseract.image_to_string(image, config="--oem 3 --psm 4")
-        return text
+
+        text_psm6 = pytesseract.image_to_string(image, config="--oem 3 --psm 6")
+        text_psm4 = pytesseract.image_to_string(image, config="--oem 3 --psm 4")
+
+        combined = (
+            "--- OCR ATTEMPT 1 ---\n"
+            + text_psm6
+            + "\n--- OCR ATTEMPT 2 (different text segmentation) ---\n"
+            + text_psm4
+        )
+        return combined
     except Exception:
         return ""
 
