@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 import io
 
 
-# Common date patterns found on receipts
+# Common date patterns found on receipts (used only as a fallback if Groq extraction fails)
 DATE_PATTERNS = [
     (r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})", "%d/%m/%Y"),
     (r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{2})", "%d/%m/%y"),
@@ -19,7 +19,7 @@ DATE_PATTERNS = [
     (r"(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})", "%d %B %Y"),
 ]
 
-# Keywords that often precede the total amount (ordered from most specific to most generic)
+# Keywords that often precede the total amount (fallback only)
 AMOUNT_KEYWORDS = [
     "net to pay", "net payable", "amount payable", "balance due",
     "amount due", "total due", "net amount", "grand total", "total amount", "total"
@@ -68,25 +68,36 @@ def preprocess_image_for_ocr(image: Image.Image) -> Image.Image:
     Improves OCR accuracy on photographed physical receipts (glare, shadows,
     low contrast, low resolution). Digital/PDF-native text never hits this
     path, so this only affects real photo uploads.
+
+    Caps the maximum dimension BEFORE running grayscale/contrast/sharpen
+    passes - phone camera photos are often 3000-4000px wide, and running
+    multiple full-resolution image transforms back to back can spike memory
+    usage past what Render's free tier (512MB) allows, causing the whole
+    process to be OOM-killed mid-request (seen as a 502 with no error log).
     """
-    # Convert to grayscale - removes color noise/glare tint
+    # Respect phone camera EXIF rotation metadata so the image isn't processed sideways
+    image = ImageOps.exif_transpose(image)
+
     image = image.convert("L")
 
-    # Auto-stretch the contrast histogram - helps a lot with glare and faded thermal print
-    image = ImageOps.autocontrast(image, cutoff=2)
+    # Cap the largest side BEFORE heavier processing to control memory use
+    MAX_DIMENSION = 2000
+    largest_side = max(image.width, image.height)
+    if largest_side > MAX_DIMENSION:
+        scale = MAX_DIMENSION / largest_side
+        image = image.resize(
+            (int(image.width * scale), int(image.height * scale)), Image.LANCZOS
+        )
 
-    # Boost contrast a bit further
+    image = ImageOps.autocontrast(image, cutoff=2)
     image = ImageEnhance.Contrast(image).enhance(1.5)
 
-    # Upscale small images - Tesseract does noticeably better on higher resolution text
-    if image.width < 1500:
-        ratio = 1500 / image.width
-        new_size = (1500, int(image.height * ratio))
-        image = image.resize(new_size, Image.LANCZOS)
+    # Upscale only if still small after any downscaling above
+    if image.width < 1200:
+        ratio = 1200 / image.width
+        image = image.resize((1200, int(image.height * ratio)), Image.LANCZOS)
 
-    # Sharpen edges to make thermal-printer dot-matrix text more distinct
     image = image.filter(ImageFilter.SHARPEN)
-
     return image
 
 
@@ -94,22 +105,16 @@ def extract_text_from_image(file_bytes: bytes) -> str:
     try:
         image = Image.open(io.BytesIO(file_bytes))
         image = preprocess_image_for_ocr(image)
-        # --oem 3: default LSTM engine, --psm 6: assume a uniform block of text
-        # (works well for receipt-style line items)
         text = pytesseract.image_to_string(image, config="--oem 3 --psm 6")
         return text
     except Exception:
-        # Tesseract not available - return empty string and let AI handle categorization
         return ""
 
 
 def extract_amount(text: str) -> Optional[float]:
+    """Regex-based fallback amount extraction, used only if Groq extraction fails."""
     text_lower = text.lower()
 
-    # First pass: look for a number near a keyword, matching whole words only
-    # (so "total" doesn't false-match inside "subtotal" or "totalitems"),
-    # and preferring the LAST occurrence, since the real total usually comes
-    # after subtotal/tax lines on a receipt.
     for keyword in AMOUNT_KEYWORDS:
         pattern = r"\b" + re.escape(keyword) + r"\b"
         matches = list(re.finditer(pattern, text_lower))
@@ -124,7 +129,6 @@ def extract_amount(text: str) -> Optional[float]:
                 except ValueError:
                     continue
 
-    # Fallback: largest decimal number in the whole text
     all_numbers = re.findall(r"[\d,]+\.\d{2}", text)
     if all_numbers:
         try:
@@ -133,8 +137,6 @@ def extract_amount(text: str) -> Optional[float]:
         except ValueError:
             pass
 
-    # Second fallback: largest plain integer (2+ digits) anywhere in the text.
-    # Needed for receipts with whole-rupee amounts and no decimal points at all.
     all_ints = re.findall(r"\b\d{2,}\b", text)
     if all_ints:
         try:
@@ -147,6 +149,7 @@ def extract_amount(text: str) -> Optional[float]:
 
 
 def extract_date(text: str) -> Optional[date_type]:
+    """Regex-based fallback date extraction, used only if Groq extraction fails."""
     for pattern, fmt in DATE_PATTERNS:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
@@ -167,9 +170,9 @@ def extract_date(text: str) -> Optional[date_type]:
 
 
 def extract_merchant(text: str) -> Optional[str]:
+    """Regex-based fallback merchant extraction, used only if Groq extraction fails."""
     lines = [line.strip() for line in text.split("\n") if line.strip()]
     if lines:
-        # Usually the merchant name is in the first few non-empty lines
         for line in lines[:3]:
             if len(line) > 2 and not re.match(r"^[\d\s\-/:.,]+$", line):
                 return line[:100]
@@ -185,13 +188,20 @@ def detect_category(text: str) -> str:
     return "Other"
 
 
+def _parse_ai_date(date_str: Optional[str]) -> Optional[date_type]:
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 def process_receipt(file_bytes: bytes) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:
     text = extract_text_from_image(file_bytes)
-    amount = extract_amount(text)
-    merchant = extract_merchant(text)
-    extracted_date = extract_date(text)
-    category = detect_category(text)
-    return text, amount, merchant, extracted_date, category
+    return _extract_all_fields(text)
+
+
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     try:
         pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
@@ -201,7 +211,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         pdf_document.close()
         if text.strip():
             return text
-        # If no text extracted, try image-based OCR
         pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
         page = pdf_document[0]
         pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
@@ -212,20 +221,40 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         return ""
 
 
+def _extract_all_fields(text: str) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:
+    """
+    Groq is the primary extraction path for amount/merchant/date, since it
+    handles varying receipt formats far better than fixed regex patterns.
+    Regex only fills in whatever Groq couldn't confidently determine, or
+    if the Groq call fails entirely (rate limit, network issue, etc).
+    """
+    from app.services.ai_service import extract_receipt_data, classify_category
+
+    ai_result = extract_receipt_data(text)
+
+    amount = ai_result.get("amount")
+    if amount is None:
+        amount = extract_amount(text)
+
+    merchant = ai_result.get("merchant")
+    if merchant is None:
+        merchant = extract_merchant(text)
+
+    extracted_date = _parse_ai_date(ai_result.get("date"))
+    if extracted_date is None:
+        extracted_date = extract_date(text)
+
+    category = detect_category(text)
+    if category == "Other":
+        category = classify_category(text, merchant)
+
+    return text, amount, merchant, extracted_date, category
+
+
 def process_receipt_file(file_bytes: bytes, content_type: str) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:
     if content_type == "application/pdf":
         text = extract_text_from_pdf(file_bytes)
     else:
         text = extract_text_from_image(file_bytes)
 
-    amount = extract_amount(text)
-    merchant = extract_merchant(text)
-    extracted_date = extract_date(text)
-    category = detect_category(text)
-
-    # If keyword matching found nothing specific, try AI classification
-    if category == "Other":
-        from app.services.ai_service import classify_category
-        category = classify_category(text, merchant)
-
-    return text, amount, merchant, extracted_date, category
+    return _extract_all_fields(text)
