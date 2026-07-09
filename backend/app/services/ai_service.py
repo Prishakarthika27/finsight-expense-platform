@@ -64,12 +64,65 @@ Respond with ONLY the category name, nothing else."""
         return "Other"
 
 
+RECEIPT_EXTRACTION_SYSTEM_PROMPT = """You are an expert at reading messy, noisy OCR output from photographed receipts and recovering the correct structured data - the same way an experienced human bookkeeper would glance at a smudged, glare-heavy receipt and still figure out what it says from context.
+
+OCR text from photographed receipts is frequently corrupted in predictable ways:
+- Characters get misread (0/O, 1/I/l, 5/S, rn/m)
+- Words get merged or split incorrectly
+- Background clutter (table textures, shadows, fingers) can inject unrelated noise text
+- Currency symbols (₹, Rs) are often misread as letters like "I" or dropped entirely
+- A label and its value can end up on different lines even though they belong together
+
+Because of this, you must NOT simply pick the first number or first line of text you see. You must reason about which numbers and words make sense in the context of a real receipt.
+
+RULES FOR "amount" (the final total paid):
+- The correct amount is the FINAL total, typically the largest monetary figure on the receipt, usually near words like "Total", "Grand Total", "Net Payable", "Amount Due" - including near-misspelled versions of these words caused by OCR noise (e.g. "otal(Rs)", "GrandToal", "T0tal").
+- NEVER use numbers that are actually: Cash Code, Order ID, Transaction ID, Invoice/Bill number, GSTIN, FSSAI number, phone/mobile numbers, table numbers, or item quantities. These are common false positives in noisy OCR text - a Cash Code or Transaction ID is NOT a total, even if it appears as a large number near other totals.
+- If subtotal, tax lines, and a final total are all present, use the FINAL total (largest of the group, appearing last), not the subtotal.
+
+RULES FOR "merchant":
+- Usually appears near the top of the receipt, often as a logo/brand name that OCR may have garbled badly.
+- Use your general world knowledge: if the garbled text resembles a real, known business name (a restaurant chain, retailer, brand, etc.), infer and return the correct real name rather than the literal garbled OCR text. For example, if OCR produced something like "ADYAR ANANDA BHAUAN SWEET" or similarly mangled text, recognize this as the well-known Indian restaurant chain "Adyar Ananda Bhavan (A2B)" and return that, not the garbled version.
+- If the top-of-receipt text is too corrupted to identify ANY plausible business name (pure noise, no recognizable words), return null rather than guessing randomly.
+
+RULES FOR "date":
+- Convert to YYYY-MM-DD format.
+- Watch for OCR corruption of month names/numbers and reconstruct the most plausible real date.
+- If genuinely no date-like pattern exists anywhere in the text, return null.
+
+Respond with ONLY valid JSON, nothing else, in this exact shape:
+{"amount": <number or null>, "merchant": "<string or null>", "date": "<YYYY-MM-DD or null>"}"""
+
+
+RECEIPT_EXTRACTION_EXAMPLE_INPUT = """SPARKLE MART SUPERMARKE T
+GSTIN: 29ABCOE1Z234 FSSAI NO: 1029384
+TAX INVOT!
+Bill No: SM88213/442
+Date: 03/Peb/2025 18:22
+1tem Qty Rate Anount
+MILK 1L 2 60.00 120.00
+BREAD LOAF 1 45.00 45.00
+EGGS DOZEN 1 90.00 90.00
+Subtotal: 255.00
+CGST 2.5%: 6.38
+SGST 2.5%: 6.38
+Grend Totol (Rs) 268.00
+Cash Code: CM-7712 Txn Id: PAY9988271"""
+
+RECEIPT_EXTRACTION_EXAMPLE_OUTPUT = """{"amount": 268.00, "merchant": "Sparkle Mart Supermarket", "date": "2025-02-03"}"""
+
+
 def extract_receipt_data(extracted_text: str) -> dict:
     """
     Uses Groq to extract amount, merchant, and date directly from raw OCR text,
     instead of relying on regex patterns that break across different receipt
-    formats. Returns a dict with keys: amount (float or None), merchant
-    (str or None), date (str in YYYY-MM-DD format, or None).
+    formats. A detailed system prompt plus a worked few-shot example teaches
+    the model to reason through common OCR noise patterns (false-positive
+    reference codes, garbled brand names, split label/value lines) rather
+    than naively grabbing the first number or line it sees.
+
+    Returns a dict with keys: amount (float or None), merchant (str or None),
+    date (str in YYYY-MM-DD format, or None).
     """
     fallback = {"amount": None, "merchant": None, "date": None}
 
@@ -79,25 +132,15 @@ def extract_receipt_data(extracted_text: str) -> dict:
     try:
         client = Groq(api_key=settings.groq_api_key)
 
-        prompt = f"""You are a receipt data extraction assistant. The text below was extracted via OCR from a photographed or scanned receipt, so it may contain typos, misread characters, or garbled formatting.
-
-Extract exactly these three fields:
-- amount: the FINAL total amount paid (usually the largest total after any subtotal/tax lines, often labeled "Total", "Grand Total", "Net Payable", "Amount Due", etc). Return as a plain number with no currency symbol, no commas.
-- merchant: the name of the shop/restaurant/business, ignoring generic descriptors like "Tax Invoice" or "Bill No".
-- date: the transaction date, converted to YYYY-MM-DD format. If the year is ambiguous or missing, make your best reasonable guess.
-
-If a field cannot be confidently determined, use null for that field.
-
-Receipt text:
-{extracted_text[:1500]}
-
-Respond with ONLY valid JSON in this exact shape, nothing else:
-{{"amount": <number or null>, "merchant": "<string or null>", "date": "<YYYY-MM-DD or null>"}}"""
-
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=150,
+            messages=[
+                {"role": "system", "content": RECEIPT_EXTRACTION_SYSTEM_PROMPT},
+                {"role": "user", "content": RECEIPT_EXTRACTION_EXAMPLE_INPUT},
+                {"role": "assistant", "content": RECEIPT_EXTRACTION_EXAMPLE_OUTPUT},
+                {"role": "user", "content": extracted_text[:2000]},
+            ],
+            max_tokens=200,
             temperature=0,
         )
 
