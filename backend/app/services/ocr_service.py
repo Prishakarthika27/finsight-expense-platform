@@ -105,7 +105,7 @@ def extract_text_from_image(file_bytes: bytes) -> str:
     try:
         image = Image.open(io.BytesIO(file_bytes))
         image = preprocess_image_for_ocr(image)
-        text = pytesseract.image_to_string(image, config="--oem 3 --psm 6")
+        text = pytesseract.image_to_string(image, config="--oem 3 --psm 4")
         return text
     except Exception:
         return ""
