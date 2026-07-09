@@ -32,33 +32,70 @@ CATEGORY_KEYWORDS = {
         "dosa", "thali", "hotel", "bar", "grill", "snacks", "sweets", "bhavan", "dhaba",
         "juice", "ice cream", "coffee", "tea", "bistro", "eatery", "lounge", "buffet",
         "qty", "order", "kot", "veg", "non veg", "paneer", "curry", "roti", "naan",
-        "soup", "salad", "dessert", "beverage", "cooldrink", "mocktail", "starter"
+        "soup", "salad", "dessert", "beverage", "cooldrink", "mocktail", "starter",
+        "mcdonald", "kfc", "starbucks", "domino", "pizza hut", "subway", "burger king",
+        "taco bell", "wendy", "chipotle", "dunkin", "baskin robbins", "krispy kreme",
+        "doordash", "ubereats", "uber eats", "grubhub", "deliveroo", "just eat",
+        "zomato", "swiggy", "foodpanda", "patisserie", "brewery", "pub", "tavern",
+        "bbq", "barbecue", "sushi", "ramen", "noodle", "catering", "food truck",
+        "canteen", "mess", "dine in", "takeaway", "take-out", "take out", "brunch",
+        "bakehouse", "confectionery", "deli", "delicatessen"
     ],
     "Travel": [
         "uber", "ola", "taxi", "fuel", "petrol", "diesel", "airlines", "railway", "metro",
         "cab", "auto", "rapido", "indigo", "irctc", "bus", "ticket", "toll", "parking",
-        "rental car", "flight", "station", "platform", "fare", "km", "mileage"
+        "rental car", "flight", "station", "platform", "fare", "km", "mileage",
+        "delta", "united airlines", "american airlines", "emirates", "qatar airways",
+        "lufthansa", "british airways", "air france", "klm", "singapore airlines",
+        "ryanair", "easyjet", "spirit airlines", "southwest airlines", "jetblue",
+        "lyft", "grab", "bolt", "didi", "careem", "subway", "tube", "bart", "amtrak",
+        "eurostar", "hotel", "motel", "airbnb", "booking.com", "expedia", "hostel",
+        "resort", "hertz", "avis", "enterprise rent", "zipcar", "gas station",
+        "petrol pump", "petrol bunk", "shell", "chevron", "exxon", "esso", " bp ",
+        "trip", "makemytrip", "goibibo", "yatra", "skyscanner", "car wash"
     ],
     "Shopping": [
         "mart", "store", "shop", "mall", "retail", "supermarket", "fashion", "apparel",
         "clothing", "footwear", "electronics", "outlet", "boutique", "lifestyle",
         "reliance", "dmart", "big bazaar", "myntra", "amazon", "flipkart", "decathlon",
-        "jewellery", "cosmetics", "stationery", "gift"
+        "jewellery", "cosmetics", "stationery", "gift",
+        "walmart", "target", "costco", "kroger", "tesco", "asda", "sainsbury", "aldi",
+        "lidl", "ikea", "zara", "h&m", "uniqlo", "nike", "adidas", "best buy",
+        "apple store", "ebay", "etsy", "alibaba", "shein", "temu", "sephora", "ulta",
+        "home depot", "lowe's", "lowes", "department store", "thrift store",
+        "convenience store", "7-eleven", "hypermarket", "showroom", "furniture store"
     ],
     "Bills": [
         "electricity", "water bill", "gas bill", "broadband", "internet", "mobile recharge",
         "postpaid", "prepaid", "wifi", "dth", "utility", "bescom", "bses", "airtel",
-        "jio", "vodafone", "vi ", "tata power", "maintenance", "society", "rent receipt"
+        "jio", "vodafone", "vi ", "tata power", "maintenance", "society", "rent receipt",
+        "gas cylinder", "cylinder", "lpg", "refill", "indane", "bharat gas", "hp gas",
+        "gas agency", "gas service", "gas distributor",
+        "insurance", "premium", "mortgage", "rent", "lease", "verizon", "at&t",
+        "t-mobile", "sprint", "o2", "ee mobile", "orange mobile", "telstra",
+        "comcast", "xfinity", "spectrum", "sewer", "council tax", "property tax",
+        "hoa fee", "bank fee", "loan payment", "credit card payment", "emi",
+        "home insurance", "car insurance", "life insurance", "electric bill",
+        "water utility", "sanitation", "waste management", "cable bill"
     ],
     "Healthcare": [
         "pharmacy", "hospital", "clinic", "medical", "medicine", "doctor", "diagnostic",
         "lab", "test report", "tablet", "syrup", "prescription", "chemist", "apollo",
-        "consultation", "x-ray", "scan", "dental", "physio", "ayurveda"
+        "consultation", "x-ray", "scan", "dental", "physio", "ayurveda",
+        "cvs", "walgreens", "boots", "rite aid", "dentist", "optometrist", "optician",
+        "veterinary", "vet clinic", "therapy", "counseling", "mental health",
+        "urgent care", "emergency room", "er visit", "ambulance", "copay",
+        "physiotherapy", "chiropractor", "surgery", "vaccination", "immunization"
     ],
     "Entertainment": [
         "cinema", "movie", "theatre", "netflix", "spotify", "game", "pvr", "inox",
         "amusement", "park", "concert", "show", "bowling", "arcade", "club",
-        "subscription", "prime video", "hotstar", "ott"
+        "subscription", "prime video", "hotstar", "ott",
+        "disney+", "disney plus", "hulu", "hbo max", "paramount+", "apple tv",
+        "youtube premium", "amc theatres", "cinemark", "regal cinemas", "ticketmaster",
+        "stubhub", "theme park", "six flags", "universal studios", "disneyland",
+        "casino", "gambling", "lottery", "golf course", "gym membership",
+        "fitness membership", "museum", "zoo", "aquarium", "live nation"
     ],
 }
 
@@ -254,10 +291,11 @@ def _normalize_common_ocr_date_artifacts(text: str) -> str:
 
 def _extract_all_fields(text: str) -> Tuple[str, Optional[float], Optional[str], Optional[date_type], str]:
     """
-    Groq is the primary extraction path for amount/merchant/date, since it
-    handles varying receipt formats far better than fixed regex patterns.
-    Regex only fills in whatever Groq couldn't confidently determine, or
-    if the Groq call fails entirely (rate limit, network issue, etc).
+    Groq is the primary extraction path for amount/merchant/date/category,
+    since it handles varying receipt formats and ambiguous keywords far
+    better than fixed patterns. Keyword-based fallbacks only fill in what
+    Groq couldn't confidently determine, or run if the Groq call fails
+    entirely (rate limit, network issue, etc).
     """
     text = _normalize_common_ocr_date_artifacts(text)
 
@@ -277,9 +315,9 @@ def _extract_all_fields(text: str) -> Tuple[str, Optional[float], Optional[str],
     if extracted_date is None:
         extracted_date = extract_date(text)
 
-    category = detect_category(text)
+    category = classify_category(text, merchant)
     if category == "Other":
-        category = classify_category(text, merchant)
+        category = detect_category(text)
 
     return text, amount, merchant, extracted_date, category
 
