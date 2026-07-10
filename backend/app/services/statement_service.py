@@ -32,17 +32,15 @@ MONTH_MAP = {
     "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
 }
 
-# Words indicating a credit (income) transaction
 CREDIT_KEYWORDS = [" cr", "credit", "deposit", "salary", "refund", "interest", "received"]
-# Words indicating a debit (expense) transaction
 DEBIT_KEYWORDS = ["debit", "dr", "withdrawal", "payment", "purchase", "charge"]
 
 CATEGORY_KEYWORDS = {
     "Food": ["swiggy", "zomato", "restaurant", "cafe", "food", "dining", "eat"],
     "Travel": ["uber", "ola", "irctc", "flight", "fuel", "petrol", "fare", "metro", "rapido"],
-    "Shopping": ["amazon", "flipkart", "myntra", "mall", "store", "shopping", "retail"],
-    "Bills": ["electricity", "recharge", "broadband", "bill payment", "dth", "insurance", "premium"],
-    "Healthcare": ["pharmacy", "hospital", "medical", "clinic", "health"],
+    "Shopping": ["amazon", "flipkart", "myntra", "mall", "store", "shopping", "retail", "big bazaar"],
+    "Bills": ["electricity", "recharge", "broadband", "bill payment", "dth", "insurance", "premium", "bescom", "water bill"],
+    "Healthcare": ["pharmacy", "hospital", "medical", "clinic", "health", "apollo"],
     "Entertainment": ["netflix", "spotify", "prime", "movie", "cinema", "subscription"],
 }
 
@@ -65,7 +63,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 
     pdf_document.close()
 
-    # If almost no text extracted, it's likely a scanned PDF
     if len(full_text.strip()) < 50:
         raise ScannedPDFError()
 
@@ -75,7 +72,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 def parse_date(date_str: str) -> Optional[date_type]:
     date_str = date_str.strip()
 
-    # Try DD/MM/YYYY or DD-MM-YYYY
     match = re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})$", date_str)
     if match:
         day, month, year = match.groups()
@@ -87,7 +83,6 @@ def parse_date(date_str: str) -> Optional[date_type]:
         except ValueError:
             return None
 
-    # Try YYYY-MM-DD
     match = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", date_str)
     if match:
         year, month, day = match.groups()
@@ -96,7 +91,6 @@ def parse_date(date_str: str) -> Optional[date_type]:
         except ValueError:
             return None
 
-    # Try DD Mon YYYY
     match = re.match(r"^(\d{1,2})[ \-]([A-Za-z]{3})[a-z]*[ \-](\d{2,4})$", date_str)
     if match:
         day, mon, year = match.groups()
@@ -120,7 +114,6 @@ def detect_category(description: str) -> str:
             if keyword in desc_lower:
                 return category
 
-    # Fallback to AI classification for unmatched descriptions
     try:
         from app.services.ai_service import classify_transaction_category
         return classify_transaction_category(description)
@@ -128,8 +121,13 @@ def detect_category(description: str) -> str:
         return "Other"
 
 
-def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]]:
-    """Returns list of (date, description, amount, type, category)"""
+def _parse_transactions_single_line(text: str) -> List[Tuple[date_type, str, float, str, str]]:
+    """
+    Handles bank statement PDFs where each full transaction (date, description,
+    amount) extracts onto a single line. Returns an empty list (rather than
+    raising) if nothing matches, so the caller can fall back to the
+    multi-line table parser instead.
+    """
     transactions = []
     lines = text.split("\n")
 
@@ -138,7 +136,6 @@ def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]
         if not line or len(line) < 8:
             continue
 
-        # Find a date at the start of the line
         date_match = None
         date_obj = None
         for pattern in DATE_PATTERNS:
@@ -152,7 +149,6 @@ def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]
         if not date_obj:
             continue
 
-        # Find amounts in the line (numbers with optional commas/decimals)
         amounts = re.findall(r"[\d,]+\.\d{2}", line)
         if not amounts:
             continue
@@ -165,7 +161,6 @@ def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]
         if amount <= 0:
             continue
 
-        # Determine description: text between date and first amount
         line_lower = line.lower()
         txn_type = "debit"
         for kw in CREDIT_KEYWORDS:
@@ -178,18 +173,143 @@ def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]
                     txn_type = "debit"
                     break
 
-        # Extract description - remove date and numbers
         description = line
         description = description.replace(date_match.group(0), "")
         for amt in amounts:
             description = description.replace(amt, "")
         description = re.sub(r"[\d,]+\.\d{2}", "", description)
+        description = re.sub(r"\b(CR|DR)\b\s*$", "", description, flags=re.IGNORECASE)
         description = re.sub(r"\s{2,}", " ", description).strip(" -|,")
         description = description[:100] if description else "Transaction"
 
         category = detect_category(description)
 
         transactions.append((date_obj, description, amount, txn_type, category))
+
+    return transactions
+
+
+def _extract_statement_year(text: str) -> int:
+    """
+    Multi-line table statements often show day+month per row without a year
+    (e.g. "01 Jun"), relying on the statement header for the year. This pulls
+    the first 4-digit year mentioned anywhere in the document as a default.
+    """
+    match = re.search(r"\b(20\d{2})\b", text)
+    if match:
+        return int(match.group(1))
+    return datetime.now().year
+
+
+def _parse_transactions_multiline(text: str, default_year: int) -> List[Tuple[date_type, str, float, str, str]]:
+    """
+    Handles bank statement PDFs where a table's columns extract as separate
+    lines instead of one line per transaction - e.g. HDFC-style statements
+    where "01 Jun", "Salary Credit - TCS Ltd", "Credit", "75,000.00",
+    "1,20,230.00" each land on their own line.
+    """
+    lines = [l.strip() for l in text.split("\n")]
+    n = len(lines)
+    transactions = []
+
+    date_pattern = re.compile(
+        r"^(\d{1,2})[\s\-]([A-Za-z]{3})[a-z]*\.?(?:[\s\-](\d{2,4}))?$", re.IGNORECASE
+    )
+    type_pattern = re.compile(r"^(credit|debit)$", re.IGNORECASE)
+    amount_pattern = re.compile(r"^[\d,]+\.\d{2}$")
+
+    i = 0
+    while i < n:
+        line = lines[i]
+        m = date_pattern.match(line) if line else None
+        if not m:
+            i += 1
+            continue
+
+        day = int(m.group(1))
+        month = MONTH_MAP.get(m.group(2).lower())
+        year_str = m.group(3)
+        year = int(year_str) if year_str else default_year
+        if year < 100:
+            year += 2000
+
+        if not month:
+            i += 1
+            continue
+
+        try:
+            txn_date = date_type(year, month, day)
+        except ValueError:
+            i += 1
+            continue
+
+        desc_parts = []
+        j = i + 1
+        found_type = None
+        lookahead_limit = min(i + 7, n)
+        while j < lookahead_limit:
+            candidate = lines[j]
+            if not candidate:
+                j += 1
+                continue
+            if type_pattern.match(candidate):
+                found_type = candidate.lower()
+                break
+            if date_pattern.match(candidate):
+                break
+            desc_parts.append(candidate)
+            j += 1
+
+        if not found_type:
+            i += 1
+            continue
+
+        k = j + 1
+        amount_val = None
+        while k < min(j + 4, n):
+            candidate = lines[k]
+            if not candidate:
+                k += 1
+                continue
+            if amount_pattern.match(candidate):
+                amount_val = candidate
+                k += 1
+            break
+
+        if amount_val is None:
+            i = j + 1
+            continue
+
+        if k < n and lines[k] and amount_pattern.match(lines[k]):
+            k += 1
+
+        try:
+            amount = float(amount_val.replace(",", ""))
+        except ValueError:
+            i = k
+            continue
+
+        if amount <= 0:
+            i = k
+            continue
+
+        description = " ".join(desc_parts).strip() or "Transaction"
+        txn_type = "credit" if found_type == "credit" else "debit"
+        category = detect_category(description)
+
+        transactions.append((txn_date, description, amount, txn_type, category))
+        i = k
+
+    return transactions
+
+
+def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]]:
+    """Returns list of (date, description, amount, type, category)"""
+    transactions = _parse_transactions_single_line(text)
+
+    if not transactions:
+        default_year = _extract_statement_year(text)
+        transactions = _parse_transactions_multiline(text, default_year)
 
     if not transactions:
         raise NoTransactionsError()
