@@ -130,6 +130,17 @@ RECEIPT_EXTRACTION_EXAMPLE_OUTPUT = """{"amount": 268.00, "merchant": "Sparkle M
 
 
 def extract_receipt_data(extracted_text: str) -> dict:
+    """
+    Uses Groq to extract amount, merchant, and date directly from raw OCR text,
+    instead of relying on regex patterns that break across different receipt
+    formats. A detailed system prompt plus a worked few-shot example teaches
+    the model to reason through common OCR noise patterns (false-positive
+    reference codes, garbled brand names, split label/value lines) rather
+    than naively grabbing the first number or line it sees.
+
+    Returns a dict with keys: amount (float or None), merchant (str or None),
+    date (str in YYYY-MM-DD format, or None).
+    """
     fallback = {"amount": None, "merchant": None, "date": None}
 
     if not extracted_text or not extracted_text.strip():
@@ -179,3 +190,95 @@ def extract_receipt_data(extracted_text: str) -> dict:
 
     except Exception:
         return fallback
+
+
+BANK_STATEMENT_EXTRACTION_PROMPT = """You are an expert at parsing bank statement text into structured transaction records. The text was extracted from a PDF and may have columns merged onto one line, split across multiple lines, or arranged differently depending on the bank's layout (some show one Amount+Type column, others show separate Withdrawal/Deposit columns, others show explicit "Credit"/"Debit" labels or "CR"/"DR" suffixes).
+
+For each transaction row you find, determine:
+- date: convert to YYYY-MM-DD format. If the year is missing from a row, use the statement's stated period/year.
+- description: the transaction narration/particulars (merchant, transfer type, reference), NOT column headers, opening/closing balance lines, or totals summary lines.
+- amount: a positive number, the transaction amount (not the running balance).
+- type: "credit" if money came IN (salary, deposit, refund, interest, or listed in a Deposit/Credit column), "debit" if money went OUT (payment, purchase, withdrawal, or listed in a Withdrawal/Debit column).
+- category: exactly one of Food, Travel, Shopping, Bills, Healthcare, Entertainment, Other - based on the description.
+
+Skip header rows, column titles, opening/closing balance lines, and summary/total lines - only return actual transaction rows.
+
+Respond with ONLY a JSON array, no markdown fences, no extra text, in this exact shape:
+[{"date": "YYYY-MM-DD", "description": "...", "amount": 123.45, "type": "credit", "category": "Food"}, ...]"""
+
+
+def extract_bank_transactions(statement_text: str) -> list:
+    """
+    Uses Groq to read raw bank statement text (however its columns extracted)
+    and directly return structured transactions, instead of relying on
+    hand-written regex patterns tuned to one bank's specific layout. This is
+    the same "AI as primary extractor" approach used for receipt scanning -
+    regex parsers remain as a fallback if this call fails or returns nothing.
+
+    Returns a list of dicts: [{"date", "description", "amount", "type", "category"}, ...]
+    Returns an empty list on any failure, so the caller can fall back to regex parsing.
+    """
+    if not statement_text or not statement_text.strip():
+        return []
+
+    try:
+        client = Groq(api_key=settings.groq_api_key)
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": BANK_STATEMENT_EXTRACTION_PROMPT},
+                {"role": "user", "content": statement_text[:6000]},
+            ],
+            max_tokens=3000,
+            temperature=0,
+        )
+
+        raw = response.choices[0].message.content.strip()
+
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            return []
+
+        results = []
+        for item in parsed:
+            if not isinstance(item, dict):
+                continue
+            date_str = item.get("date")
+            description = item.get("description")
+            amount = item.get("amount")
+            txn_type = item.get("type")
+            category = item.get("category")
+
+            if not date_str or not description or amount is None or txn_type not in ("credit", "debit"):
+                continue
+
+            try:
+                amount = float(amount)
+            except (ValueError, TypeError):
+                continue
+
+            if amount <= 0:
+                continue
+
+            if category not in VALID_CATEGORIES:
+                category = "Other"
+
+            results.append({
+                "date": date_str,
+                "description": str(description)[:100],
+                "amount": amount,
+                "type": txn_type,
+                "category": category,
+            })
+
+        return results
+
+    except Exception:
+        return []
