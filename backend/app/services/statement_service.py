@@ -32,9 +32,7 @@ MONTH_MAP = {
     "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
 }
 
-# Words indicating a credit (income) transaction
 CREDIT_KEYWORDS = [" cr", "credit", "deposit", "salary", "refund", "interest", "received"]
-# Words indicating a debit (expense) transaction
 DEBIT_KEYWORDS = ["debit", "dr", "withdrawal", "payment", "purchase", "charge"]
 
 CATEGORY_KEYWORDS = {
@@ -65,7 +63,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 
     pdf_document.close()
 
-    # If almost no text extracted, it's likely a scanned PDF
     if len(full_text.strip()) < 50:
         raise ScannedPDFError()
 
@@ -75,7 +72,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 def parse_date(date_str: str) -> Optional[date_type]:
     date_str = date_str.strip()
 
-    # Try DD/MM/YYYY or DD-MM-YYYY
     match = re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})$", date_str)
     if match:
         day, month, year = match.groups()
@@ -87,7 +83,6 @@ def parse_date(date_str: str) -> Optional[date_type]:
         except ValueError:
             return None
 
-    # Try YYYY-MM-DD
     match = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", date_str)
     if match:
         year, month, day = match.groups()
@@ -96,7 +91,6 @@ def parse_date(date_str: str) -> Optional[date_type]:
         except ValueError:
             return None
 
-    # Try DD Mon YYYY
     match = re.match(r"^(\d{1,2})[ \-]([A-Za-z]{3})[a-z]*[ \-](\d{2,4})$", date_str)
     if match:
         day, mon, year = match.groups()
@@ -120,7 +114,6 @@ def detect_category(description: str) -> str:
             if keyword in desc_lower:
                 return category
 
-    # Fallback to AI classification for unmatched descriptions
     try:
         from app.services.ai_service import classify_transaction_category
         return classify_transaction_category(description)
@@ -131,9 +124,8 @@ def detect_category(description: str) -> str:
 def _parse_transactions_single_line(text: str) -> List[Tuple[date_type, str, float, str, str]]:
     """
     Handles bank statement PDFs where each full transaction (date, description,
-    amount) extracts onto a single line - e.g. "01/06/2026 Amazon Pay 2,500.00".
-    Returns an empty list (rather than raising) if nothing matches, so the
-    caller can fall back to the multi-line table parser instead.
+    amount) extracts onto a single line. Returns an empty list (rather than
+    raising) if nothing matches, so the caller can fall back to the next parser.
     """
     transactions = []
     lines = text.split("\n")
@@ -143,7 +135,6 @@ def _parse_transactions_single_line(text: str) -> List[Tuple[date_type, str, flo
         if not line or len(line) < 8:
             continue
 
-        # Find a date at the start of the line
         date_match = None
         date_obj = None
         for pattern in DATE_PATTERNS:
@@ -157,7 +148,6 @@ def _parse_transactions_single_line(text: str) -> List[Tuple[date_type, str, flo
         if not date_obj:
             continue
 
-        # Find amounts in the line (numbers with optional commas/decimals)
         amounts = re.findall(r"[\d,]+\.\d{2}", line)
         if not amounts:
             continue
@@ -170,7 +160,6 @@ def _parse_transactions_single_line(text: str) -> List[Tuple[date_type, str, flo
         if amount <= 0:
             continue
 
-        # Determine description: text between date and first amount
         line_lower = line.lower()
         txn_type = "debit"
         for kw in CREDIT_KEYWORDS:
@@ -183,7 +172,6 @@ def _parse_transactions_single_line(text: str) -> List[Tuple[date_type, str, flo
                     txn_type = "debit"
                     break
 
-        # Extract description - remove date and numbers
         description = line
         description = description.replace(date_match.group(0), "")
         for amt in amounts:
@@ -202,10 +190,9 @@ def _parse_transactions_single_line(text: str) -> List[Tuple[date_type, str, flo
 
 def _extract_statement_year(text: str) -> int:
     """
-    Multi-line table statements often show the day+month per row without a
-    year (e.g. "01 Jun"), relying on the statement header for the year.
-    This pulls the first 4-digit year mentioned anywhere in the document
-    (usually in a "Period:" or "Statement Date:" line) as a sensible default.
+    Multi-line table statements often show day+month per row without a year
+    (e.g. "01 Jun"), relying on the statement header for the year. This pulls
+    the first 4-digit year mentioned anywhere in the document as a default.
     """
     match = re.search(r"\b(20\d{2})\b", text)
     if match:
@@ -218,10 +205,7 @@ def _parse_transactions_multiline(text: str, default_year: int) -> List[Tuple[da
     Handles bank statement PDFs where a table's columns extract as separate
     lines instead of one line per transaction - e.g. HDFC-style statements
     where "01 Jun", "Salary Credit - TCS Ltd", "Credit", "75,000.00",
-    "1,20,230.00" each land on their own line. Walks the lines looking for
-    a date, then scans forward for a standalone "Credit"/"Debit" line
-    (collecting any lines in between as the description), then the amount
-    figure right after it.
+    "1,20,230.00" each land on their own line.
     """
     lines = [l.strip() for l in text.split("\n")]
     n = len(lines)
@@ -258,8 +242,6 @@ def _parse_transactions_multiline(text: str, default_year: int) -> List[Tuple[da
             i += 1
             continue
 
-        # Scan forward (a few lines) for the standalone Credit/Debit line,
-        # collecting any non-empty lines in between as the description
         desc_parts = []
         j = i + 1
         found_type = None
@@ -273,7 +255,6 @@ def _parse_transactions_multiline(text: str, default_year: int) -> List[Tuple[da
                 found_type = candidate.lower()
                 break
             if date_pattern.match(candidate):
-                # Hit the next record's date before finding a type line - abandon this one
                 break
             desc_parts.append(candidate)
             j += 1
@@ -282,7 +263,6 @@ def _parse_transactions_multiline(text: str, default_year: int) -> List[Tuple[da
             i += 1
             continue
 
-        # The line(s) right after the type should be the amount, then balance
         k = j + 1
         amount_val = None
         while k < min(j + 4, n):
@@ -299,7 +279,6 @@ def _parse_transactions_multiline(text: str, default_year: int) -> List[Tuple[da
             i = j + 1
             continue
 
-        # Skip the balance line right after, if present, so we don't re-scan it as a date
         if k < n and lines[k] and amount_pattern.match(lines[k]):
             k += 1
 
@@ -351,20 +330,14 @@ def _parse_transactions_split_columns(text: str, default_year: int) -> List[Tupl
         if year < 100:
             year += 2000
         if year < 100 or year > 3000 or not (1 <= month <= 12):
-            # Not actually date-like (e.g. matched something else) - skip
             i += 1
             continue
-        # If day/month look swapped (day > 12 but month <= 12), keep as-is;
-        # this format is DD-MM-YYYY per the statement's stated convention.
         try:
             txn_date = date_type(year, month, day)
         except ValueError:
             i += 1
             continue
 
-        # Collect description lines (particulars, ref no, etc.) until we hit
-        # the first amount-or-dash token, which marks the start of the
-        # Withdrawal / Deposit / Balance column sequence
         desc_parts = []
         j = i + 1
         lookahead_limit = min(i + 8, n)
@@ -376,7 +349,6 @@ def _parse_transactions_split_columns(text: str, default_year: int) -> List[Tupl
             if amount_or_dash_pattern.match(candidate):
                 break
             if date_pattern.match(candidate):
-                # Hit the next record's date before finding amount columns - abandon this one
                 break
             desc_parts.append(candidate)
             j += 1
@@ -388,7 +360,6 @@ def _parse_transactions_split_columns(text: str, default_year: int) -> List[Tupl
         withdrawal_tok = lines[j]
         j += 1
 
-        # Skip blanks to find the deposit token
         while j < n and not lines[j]:
             j += 1
         if j >= n or not amount_or_dash_pattern.match(lines[j] or ""):
@@ -397,7 +368,6 @@ def _parse_transactions_split_columns(text: str, default_year: int) -> List[Tupl
         deposit_tok = lines[j]
         j += 1
 
-        # Skip blanks, then consume the balance token if present (we don't need its value)
         while j < n and not lines[j]:
             j += 1
         if j < n and amount_or_dash_pattern.match(lines[j] or ""):
@@ -408,7 +378,6 @@ def _parse_transactions_split_columns(text: str, default_year: int) -> List[Tupl
         elif deposit_tok != "-":
             amount_str, txn_type = deposit_tok, "credit"
         else:
-            # Both columns empty - malformed row, skip
             i = j
             continue
 
@@ -434,8 +403,10 @@ def _parse_transactions_split_columns(text: str, default_year: int) -> List[Tupl
 def _parse_ai_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]]:
     """
     Calls the Groq-based extractor and converts its dict output into the
-    same tuple shape the regex parsers produce, so the rest of the code
-    doesn't need to know which path was used.
+    same tuple shape the regex parsers produce. Only used as a last-resort
+    catch-all if none of the regex parsers above find anything - Groq proved
+    unreliable on per-row date convention (DD-MM vs MM-DD) and credit/debit
+    inference when tested against a real multi-row statement.
     """
     try:
         from app.services.ai_service import extract_bank_transactions
@@ -464,13 +435,12 @@ def _parse_ai_transactions(text: str) -> List[Tuple[date_type, str, float, str, 
 
 def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]]:
     """Returns list of (date, description, amount, type, category)"""
-    # Groq is the primary extraction path - it generalizes across bank layouts
-    # far better than hand-written regex patterns tuned to specific formats.
-    transactions = _parse_ai_transactions(text)
-
-    # Regex parsers act as a fallback chain if Groq is unavailable or returns nothing
-    if not transactions:
-        transactions = _parse_transactions_single_line(text)
+    # Regex parsers run first - they've been directly tested and verified
+    # correct against real statement layouts. Groq's per-row date convention
+    # (DD-MM vs MM-DD) and credit/debit inference proved unreliable on
+    # multi-row extraction, so it's kept only as a last-resort catch-all
+    # for a genuinely new, uncovered format - not as the primary path.
+    transactions = _parse_transactions_single_line(text)
 
     if not transactions:
         default_year = _extract_statement_year(text)
@@ -479,6 +449,9 @@ def parse_transactions(text: str) -> List[Tuple[date_type, str, float, str, str]
     if not transactions:
         default_year = _extract_statement_year(text)
         transactions = _parse_transactions_split_columns(text, default_year)
+
+    if not transactions:
+        transactions = _parse_ai_transactions(text)
 
     if not transactions:
         raise NoTransactionsError()
