@@ -90,6 +90,9 @@ export function IncomeExpenseChart({ data }: IncomeExpenseChartProps) {
                 {status.label}
               </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2 px-2">
+                You earned {formatCurrency(totalIncome)} and spent {formatCurrency(totalExpense)}, saving {formatCurrency(Math.max(totalSaved, 0))} ({savingsRate}%).
+              </p>
 
             {/* Stat cards */}
             <div className="grid grid-cols-3 gap-2 w-full mt-4">
